@@ -1,0 +1,18 @@
+name = "affiliate-hub-v2"
+compatibility_date = "2026-10-08"
+pages_build_output_dir = "./public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "affiliate-hub-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Secrets must be set in Cloudflare dashboard (do not commit them):
+# AUTH_PROVIDER = github
+# GITHUB_CLIENT_ID = OAuth App Client ID
+# GITHUB_CLIENT_SECRET = OAuth App Client Secret
+# ADMIN_GITHUB_IDS = allowed numeric GitHub user IDs
+# SESSION_SECRET = random text at least 32 chars
+# Access alternative: AUTH_PROVIDER=access with TEAM_DOMAIN, POLICY_AUD, ADMIN_EMAILS
+# CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+# ALLOW_LOCAL_DEV_AUTH is intentionally NOT supported.

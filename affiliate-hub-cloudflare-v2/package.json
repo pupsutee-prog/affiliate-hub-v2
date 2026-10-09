@@ -1,0 +1,14 @@
+{
+  "name": "affiliate-hub-cloudflare-v2",
+  "private": true,
+  "version": "2.0.0-starter",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "db:local": "wrangler d1 execute affiliate-hub-db --local --file=./schema/001_init.sql",
+    "db:remote": "wrangler d1 execute affiliate-hub-db --remote --file=./schema/001_init.sql",
+    "deploy": "wrangler pages deploy public",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {"wrangler": "^4.0.0"}
+}

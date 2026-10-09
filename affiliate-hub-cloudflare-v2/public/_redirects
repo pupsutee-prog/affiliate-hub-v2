@@ -1,0 +1,2 @@
+# The original website uses hash routes (#/product/... and #/admin).
+# No SPA catch-all needed. All public pages use the same index.html.
