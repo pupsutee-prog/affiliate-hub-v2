@@ -5,7 +5,7 @@ pages_build_output_dir = "./public"
 [[d1_databases]]
 binding = "DB"
 database_name = "affiliate-hub-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "c12e5f91-f2e4-4618-b521-1c586e3cc788"
 
 # Secrets must be set in Cloudflare dashboard (do not commit them):
 # AUTH_PROVIDER = github
