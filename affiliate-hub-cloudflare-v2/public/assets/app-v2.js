@@ -120,6 +120,16 @@ async function uploadImage(file){
   showImage(out.secure_url);$('#imageHint').textContent='อัปโหลดเรียบร้อย · กดบันทึกสินค้าเพื่อใช้รูป';await Promise.all([loadMedia(),loadQuota()]);
  }catch(e){$('#imageHint').textContent='อัปโหลดไม่สำเร็จ: '+e.message;fail(e);}
 }
+async function fetchSingleProduct(){
+ const url=$('#linkForm [name="url"]').value.trim();if(!url)return notify('กรุณาใส่ลิงก์สินค้า',true);
+ const button=$('#fetchImageBtn');button.disabled=true;$('#imageHint').textContent='กำลังดึงชื่อและรูปจากร้านค้า...';
+ try{
+  const p=await adminApi('preview','POST',{url});
+  $('#linkForm [name="title"]').value=p.title;$('#formMarket').value=p.market;showImage(p.image);
+  $('#imageHint').textContent='ดึงชื่อและรูปแล้ว · ตรวจสอบข้อมูลก่อนกดบันทึก';
+ }catch(e){$('#imageHint').textContent='ดึงข้อมูลไม่สำเร็จ: '+e.message;fail(e);}
+ finally{button.disabled=false;}
+}
 function parseCSV(src){
  src=src.replace(/^\uFEFF/,'');let rows=[],row=[],cell='',quotes=false;
  for(let i=0;i<src.length;i++){const c=src[i];if(quotes){if(c==='"'&&src[i+1]==='"'){cell+='"';i++;}else if(c==='"')quotes=false;else cell+=c;}else if(c==='"')quotes=true;else if(c===','){row.push(cell);cell='';}else if(c==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell='';}else cell+=c;}
@@ -167,10 +177,27 @@ async function editSite(){
  try{await adminApi('sites/'+site.id,'PATCH',{slug:site.slug,name,tagline,theme_color:color,host});await loadSites();await loadPublic();notify('ตั้งค่าเว็บไซต์สำเร็จ');}catch(e){fail(e);}
 }
 async function bulkUrls(){
- const text=$('#bulkUrlInput').value.trim();if(!text)return notify('กรุณาวางลิงก์',true);
- const items=text.split(/\r?\n/).map(line=>{const [url,title]=line.split('|').map(x=>x?.trim());let market='';try{const host=new URL(url).hostname.toLowerCase();market=/shopee/.test(host)?'shopee':/lazada/.test(host)?'lazada':/tiktok/.test(host)?'tiktok':/amazon|amzn|a\.co$/.test(host)?'amazon':'';}catch{}return {title:title||'สินค้าใหม่ '+(markets[market]||''),url,market,category:'',image:'',status:'published'};}).filter(p=>p.market);
- if(!items.length)return notify('ไม่พบ URL ตลาดสินค้าที่รองรับ',true);
- try{const done=await importItems(items);$('#bulkUrlInput').value='';notify('เพิ่มลิงก์ '+done+' รายการแล้ว');await loadAdminProducts();}catch(e){fail(e);}
+ const lines=$('#bulkUrlInput').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ if(!lines.length)return notify('กรุณาวางลิงก์',true);
+ if(lines.length>50)return notify('เพิ่มได้ครั้งละไม่เกิน 50 ลิงก์',true);
+ const button=$('#bulkAddBtn'),message=$('#bulkMsg');button.disabled=true;message.hidden=false;
+ const items=[],failed=[];
+ try{
+  for(let i=0;i<lines.length;i+=4){
+   message.textContent=`กำลังดึงชื่อและรูป ${Math.min(i+4,lines.length)} / ${lines.length} ลิงก์...`;
+   const batch=await Promise.all(lines.slice(i,i+4).map(async line=>{
+    const separator=line.indexOf('|'),url=(separator<0?line:line.slice(0,separator)).trim(),customTitle=separator<0?'':line.slice(separator+1).trim();
+    try{const p=await adminApi('preview','POST',{url});return {line,item:{title:customTitle||p.title,url,market:p.market,category:'',image:p.image,status:'published'}};}
+    catch(e){return {line,error:e.message||'ดึงข้อมูลไม่สำเร็จ'};}
+   }));
+   for(const result of batch){if(result.item)items.push(result.item);else failed.push(result);}
+  }
+  if(items.length){await importItems(items);await Promise.all([loadAdminProducts(),loadQuota()]);}
+  $('#bulkUrlInput').value=failed.map(x=>x.line).join('\n');
+  message.textContent=failed.length?`เพิ่ม ${items.length} รายการ · ดึงข้อมูลไม่ได้ ${failed.length} ลิงก์ (${failed.slice(0,2).map(x=>x.error).join('; ')}) — ลิงก์ที่เหลือยังอยู่ในช่อง`:`เพิ่ม ${items.length} รายการ พร้อมชื่อและรูปสินค้า`;
+  notify(message.textContent,failed.length>0);
+ }catch(e){message.textContent='บันทึกไม่สำเร็จ: '+e.message;fail(e);}
+ finally{button.disabled=false;}
 }
 async function handleGlobalClick(e){
  const p=e.target.closest('[data-page]');if(p){const [type,direction]=p.dataset.page.split(':');if(type==='public'){state.page+=direction==='next'?1:-1;await loadPublic();}else{state.adminPage+=direction==='next'?1:-1;await loadAdminProducts();}return;}
@@ -190,6 +217,7 @@ function hooks(){
  $('#formMarket').innerHTML=Object.entries(markets).map(([v,n])=>`<option value="${v}">${n}</option>`).join('');
  $('#linkForm').addEventListener('submit',onForm);$('#cancelEdit').addEventListener('click',resetForm);
  $('#imageInput').addEventListener('input',e=>showImage(e.target.value));$('#clearImageBtn').addEventListener('click',()=>showImage(''));
+ $('#fetchImageBtn').addEventListener('click',fetchSingleProduct);
  $('#uploadImageBtn').addEventListener('click',()=>$('#imageFile').click());$('#imageFile').addEventListener('change',e=>uploadImage(e.target.files?.[0]));
  $('#logoutBtn').addEventListener('click',()=>{location.href='/api/auth/logout';});
  $('#v2SiteSelect').addEventListener('change',async e=>{state.site=e.target.value;state.adminPage=1;resetForm();$('#v2VisitSite').href=siteLink(state.site);await Promise.all([loadAdminProducts(),loadQuota(),loadMedia()]);});
