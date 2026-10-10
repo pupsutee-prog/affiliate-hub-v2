@@ -1,6 +1,7 @@
 import {json,HttpError,must,parseBody,responseError,cleanText} from '../../_lib/http.js';
 import {verifyAdmin} from '../../_lib/auth.js';
 import {siteFromSlug,validateSite,validateProduct,productOut,log} from '../../_lib/db.js';
+import {previewProduct} from '../../_lib/product-preview.js';
 
 const stamp=()=>new Date().toISOString();
 const METHODS=['GET','POST','PATCH','DELETE'];
@@ -24,6 +25,11 @@ export async function onRequest(context){
     const action=path[0]||'me', id=path[1];
     if(action==='login' && method==='GET')return Response.redirect(u.origin+'/#/admin',302);
     if(action==='me' && method==='GET')return json({ok:true,email:actor.email});
+
+    if(action==='preview' && method==='POST'){
+      const body=await parseBody(request);
+      return json({ok:true,...await previewProduct(body.url)});
+    }
 
     if(action==='sites') {
       if(method==='GET'){
