@@ -194,13 +194,13 @@
                 <div class="image-controls">
                   <input name="image" id="imageInput" type="text" placeholder="วาง URL รูปภาพ หรือใช้ปุ่มด้านล่าง">
                   <div class="image-buttons">
-                    <button class="btn btn-ghost btn-sm" type="button" id="fetchImageBtn" hidden>ดึงรูปจากลิงก์</button>
+                    <button class="btn btn-ghost btn-sm" type="button" id="fetchImageBtn">ดึงชื่อและรูปจากลิงก์</button>
                     <button class="btn btn-ghost btn-sm" type="button" id="uploadImageBtn">อัปโหลดจากเครื่อง</button>
                     <button class="btn btn-ghost btn-sm" type="button" id="clearImageBtn">ลบรูป</button>
                     <input type="file" id="imageFile" accept="image/*" hidden>
                   </div>
                   <p class="image-hint" id="imageHint">
-                    Amazon และ Lazada ดึงรูปอัตโนมัติได้ · Shopee และ TikTok Shop มักบล็อก ให้ใช้ปุ่มอัปโหลดแทน
+                    กดดึงชื่อและรูปจากลิงก์ก่อนบันทึก · หากร้านค้าไม่ส่งข้อมูล ให้ใช้ปุ่มอัปโหลดรูป
                   </p>
                 </div>
               </div>
@@ -217,7 +217,7 @@
             </label>
 
             <label class="field field-wide">
-              <span>รายละเอียดจากร้านค้า (กดปุ่มดึงข้อมูลด้านบนเพื่อเติมอัตโนมัติ)</span>
+              <span>รายละเอียดจากร้านค้า (เว้นว่างได้)</span>
               <textarea name="description" rows="4" maxlength="4000" placeholder="เว้นว่างได้"></textarea>
             </label>
 
@@ -257,9 +257,9 @@ https://www.lazada.co.th/products/xxxxx.html | หม้อทอดไร้น
 https://www.amazon.com/dp/B07FZ8S74R"></textarea>
           </label>
           <p class="hint">
-            ระบบเดาตลาดจากลิงก์ให้เอง แล้วลองดึงชื่อกับรูปให้อัตโนมัติ ·
-            ถ้าอยากตั้งชื่อเองให้เติม <code>| ชื่อสินค้า</code> ต่อท้ายบรรทัด
-            (Shopee และ TikTok Shop จะดึงชื่อให้ไม่ได้ ถ้า deploy แบบลากวาง)
+            ระบบดึงชื่อและรูปจากร้านค้า แล้วเก็บลิงก์ affiliate เดิมไว้ ·
+            ถ้าอยากตั้งชื่อเองให้เติม <code>| ชื่อสินค้า</code> ต่อท้ายบรรทัด ·
+            ลิงก์ที่ดึงข้อมูลไม่ได้จะค้างอยู่ในช่องให้แก้ไขหรือลองใหม่
           </p>
           <div class="form-actions">
             <button class="btn btn-primary" type="button" id="bulkAddBtn">ดึงข้อมูลและเพิ่ม</button>
