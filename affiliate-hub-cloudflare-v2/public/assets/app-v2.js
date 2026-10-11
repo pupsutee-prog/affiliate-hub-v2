@@ -9,7 +9,7 @@ const tint={'อิเล็กทรอนิกส์':'#4f46e5','บ้าน
 const currentSite=new URLSearchParams(location.search).get('site')||'main';
 const state={site:currentSite,page:1,total:0,limit:24,products:[],categories:[],q:'',category:'',market:'',sort:'newest',admin:false,adminProducts:[],adminPage:1,adminTotal:0,sites:[],editing:null,selected:new Set(),media:[]};
 const params=(p={})=>new URLSearchParams({site:state.site,...p}).toString();
-const siteLink=s=>`${location.pathname}?site=${encodeURIComponent(s)}#/`;
+const siteLink=s=>`/?site=${encodeURIComponent(s)}#/`;
 const categoryHash=category=>category?'#/category/'+encodeURIComponent(category):'#/';
 async function api(path,opts={}){
   const res=await fetch(path,{credentials:'same-origin',cache:'no-store',...opts});
@@ -57,7 +57,7 @@ async function route(){
  let detail='';try{detail=decodeURIComponent(encodedParts.join('/'));}catch{}
  const view=section==='admin'?'admin':section==='about'?'about':section==='product'?'product':'home';
  if(view==='home'){
-  const category=section==='category'?detail:'';
+  const category=section==='category'?detail:!location.hash&&location.pathname.startsWith('/category/')?document.querySelector('meta[name="category-name"]')?.content||'':'';
   if(state.category!==category)state.page=1;
   state.category=category;
  }
@@ -215,7 +215,7 @@ async function bulkUrls(){
 }
 async function handleGlobalClick(e){
  const p=e.target.closest('[data-page]');if(p){const [type,direction]=p.dataset.page.split(':');if(type==='public'){state.page+=direction==='next'?1:-1;await loadPublic();}else{state.adminPage+=direction==='next'?1:-1;await loadAdminProducts();}return;}
- const cat=e.target.closest('[data-category]');if(cat){state.page=1;const hash=categoryHash(cat.dataset.category);if(location.hash===hash){state.category=cat.dataset.category;await loadPublic();}else location.hash=hash;return;}
+ const cat=e.target.closest('[data-category]');if(cat){const category=cat.dataset.category;const slug=state.categories.find(c=>c.category===category)?.slug;if(category&&!slug){location.hash=categoryHash(category);}else location.assign((category?'/category/'+encodeURIComponent(slug):'/')+location.search);return;}
  const go=e.target.closest('[data-go]');if(go){const product=state.products.find(p=>p.id===go.dataset.go);if(product)window.open(product.url,'_blank','noopener,noreferrer');return;}
  const edit=e.target.closest('[data-edit]');if(edit)return editProduct(edit.dataset.edit);
  const del=e.target.closest('[data-delete]');if(del){const x=state.adminProducts.find(p=>p.id===del.dataset.delete);if(x&&confirm('ลบสินค้า "'+x.title+'"? (เก็บร่องรอยไว้สำหรับกู้ข้อมูล)'))try{await adminApi('products/'+x.id+'?'+params(),'DELETE');notify('ลบข้อมูลแล้ว');await loadAdminProducts();await loadQuota();}catch(err){fail(err);}return;}
