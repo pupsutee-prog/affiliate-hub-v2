@@ -52,6 +52,7 @@
       <div>
         <h1>รวมลิงก์ affiliate จาก 4 ตลาดดัง</h1>
         <p>เราคัดมาแล้วว่าแต่ละชิ้นน่าซื้อตรงไหน เลือกอันที่สนใจแล้วกดไปดูที่หน้าสินค้าได้เลย</p>
+        <button class="btn btn-ghost btn-sm" id="copyCategoryLink" type="button" hidden>คัดลอกลิงก์หมวดนี้</button>
       </div>
       <div class="hero-stats" id="heroStats"></div>
     </div>
@@ -145,6 +146,11 @@
           <a class="btn btn-ghost btn-sm" id="v2VisitSite" href="?site=main#/">ดูเว็บไซต์</a>
         </div>
         <p class="hint">ชื่อเว็บไซต์ใหม่ใช้ URL ในรูปแบบ <code>?site=ชื่อเว็บไซต์</code> โดยยังไม่ต้องซื้อโดเมน</p>
+      </div>
+      <div class="panel" id="v2CategoryPanel">
+        <div class="panel-head"><h2>จัดการหมวดหมู่</h2><button class="btn btn-ghost btn-sm" id="refreshCategories" type="button">รีเฟรช</button></div>
+        <p class="hint">เพิ่มหมวดใหม่ได้โดยกรอกชื่อในช่องหมวดหมู่ของสินค้า เมื่อลบหมวด สินค้ายังอยู่และจะไม่ถูกจัดเข้าหมวดใด</p>
+        <div id="adminCategoryList" class="admin-category-list"></div>
       </div>
       <div class="panel" id="v2QuotaPanel">
         <div class="panel-head"><h2>โควตาและสถานะระบบ</h2><button type="button" class="btn btn-ghost btn-sm" id="v2RefreshQuota">รีเฟรช</button></div>
