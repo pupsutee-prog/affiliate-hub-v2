@@ -44,6 +44,10 @@ test('D1 full lifecycle: create site, create/edit/search/delete product, import/
  r=await call('/api/admin/products','POST',{site:'tech-items',title:'Camera Case',market:'shopee',url:'https://shopee.co.th/123',image:'',category:'กล้อง',why:'กันรอย'});
  assert.equal(r.status,201,JSON.stringify(r.data));const pid=r.data.id;
  r=await call('/api/catalog?site=tech-items&q=Camera');assert.equal(r.status,200);assert.equal(r.data.total,1);assert.equal(r.data.site.slug,'tech-items');
+ r=await call('/api/admin/categories?site=tech-items');assert.equal(r.data.categories[0].category,'กล้อง');
+ r=await call('/api/admin/categories?site=tech-items','DELETE',{category:'กล้อง'});assert.equal(r.status,200);assert.equal(r.data.updatedProducts,1);
+ r=await call('/api/admin/products?site=tech-items');assert.equal(r.data.products[0].category,'');assert.equal(r.data.total,1);
+ r=await call('/api/catalog?site=tech-items&q=Camera');assert.equal(r.data.total,1);
  r=await call('/api/catalog?site=main&q=Camera');assert.equal(r.data.total,0);
  r=await call(`/api/admin/products/${pid}`,'PATCH',{site:'tech-items',title:'Camera Sleeve',market:'shopee',url:'https://shopee.co.th/123',category:'กล้อง'});
  assert.equal(r.status,200,JSON.stringify(r.data));

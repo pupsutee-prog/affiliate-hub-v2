@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {categorySlug} from '../functions/_lib/category-link.js';
+import {categorySlug,oldGeneratedSlug} from '../functions/_lib/category-link.js';
 import {onRequestGet} from '../functions/category/[slug].js';
 
 const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
@@ -15,16 +15,14 @@ const env={
   ASSETS:{async fetch(){return new Response(html,{headers:{'content-type':'text/html'}})}},
 };
 
-test('category URLs have short stable slugs',()=>{
-  assert.equal(categorySlug('อิเล็กทรอนิกส์'),'electronics');
-  assert.equal(categorySlug('กีฬา'),'sports');
-  assert.match(categorySlug('ของใหม่ & ดี'),/^c-[a-z0-9]{1,13}$/);
-  assert.equal(categorySlug('ของใหม่ & ดี'),categorySlug('ของใหม่ & ดี'));
+test('category paths are derived from any name, including new Thai names',()=>{
+  assert.equal(categorySlug('อิเล็กทรอนิกส์'),'อิเล็กทรอนิกส์');
+  assert.equal(categorySlug('ของใหม่ & ดี'),'ของใหม่ & ดี');
 });
 
 test('category page gives link previews a Thai title and opens the selected category',async()=>{
-  const request=new Request('https://khongsasom.pages.dev/category/electronics');
-  const response=await onRequestGet({request,env,params:{slug:'electronics'}});
+  const request=new Request('https://khongsasom.pages.dev/category/'+encodeURIComponent('อิเล็กทรอนิกส์'));
+  const response=await onRequestGet({request,env});
   const page=await response.text();
   assert.equal(response.status,200);
   assert.match(page,/<title>อิเล็กทรอนิกส์ \| Affiliate Hub<\/title>/);
@@ -33,8 +31,22 @@ test('category page gives link previews a Thai title and opens the selected cate
   assert.match(page,/<base href="\/">/);
 });
 
+test('new categories and previously shared English links both open',async()=>{
+  const newRequest=new Request('https://khongsasom.pages.dev/category/'+encodeURIComponent('ของใหม่ & ดี'));
+  const newPage=await onRequestGet({request:newRequest,env});
+  assert.equal(newPage.status,200);
+  assert.match(await newPage.text(),/<meta property="og:title" content="ของใหม่ &amp; ดี">/);
+  const oldRequest=new Request('https://khongsasom.pages.dev/category/electronics');
+  const oldPage=await onRequestGet({request:oldRequest,env});
+  assert.equal(oldPage.status,200);
+  assert.match(await oldPage.text(),/<meta name="category-name" content="อิเล็กทรอนิกส์">/);
+  const previousCustomLink=new Request('https://khongsasom.pages.dev/category/'+oldGeneratedSlug('ของใหม่ & ดี'));
+  const previousCustomPage=await onRequestGet({request:previousCustomLink,env});
+  assert.equal(previousCustomPage.status,200);
+});
+
 test('unknown category link returns 404',async()=>{
   const request=new Request('https://khongsasom.pages.dev/category/missing');
-  const response=await onRequestGet({request,env,params:{slug:'missing'}});
+  const response=await onRequestGet({request,env});
   assert.equal(response.status,404);
 });
