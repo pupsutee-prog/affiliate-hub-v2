@@ -48,17 +48,18 @@
 
   <!-- ===== HOME ===== -->
   <section id="view-home" class="view">
-    <div class="hero">
+    <div class="catalog-head">
       <div>
-        <h1>รวมลิงก์ affiliate จาก 4 ตลาดดัง</h1>
-        <p>เราคัดมาแล้วว่าแต่ละชิ้นน่าซื้อตรงไหน เลือกอันที่สนใจแล้วกดไปดูที่หน้าสินค้าได้เลย</p>
-        <button class="btn btn-ghost btn-sm" id="copyCategoryLink" type="button" hidden>คัดลอกลิงก์หมวดนี้</button>
+        <h1 id="catalogTitle">สินค้าทั้งหมด</h1>
+        <p class="result-line" id="resultCount"></p>
       </div>
-      <div class="hero-stats" id="heroStats"></div>
+      <button class="btn btn-ghost copy-category" id="copyCategoryLink" type="button" hidden>คัดลอกลิงก์</button>
     </div>
 
-    <div class="toolbar">
-      <div class="chips" id="categoryChips" role="group" aria-label="กรองตามหมวดหมู่"></div>
+    <div class="catalog-controls">
+      <div class="category-scroll" aria-label="เลื่อนดูหมวดหมู่">
+        <div class="chips" id="categoryChips" role="group" aria-label="กรองตามหมวดหมู่"></div>
+      </div>
       <div class="toolbar-right">
         <label class="field">
           <span>ตลาด</span>
@@ -77,7 +78,6 @@
       </div>
     </div>
 
-    <div class="result-line"><span id="resultCount"></span></div>
     <div class="grid" id="linkGrid"></div>
     <div class="empty" id="homeEmpty" hidden>
       <p class="empty-title">ยังไม่พบสินค้าที่ตรงกับเงื่อนไข</p>
