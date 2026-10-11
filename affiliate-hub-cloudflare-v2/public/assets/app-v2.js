@@ -35,7 +35,7 @@ async function loadPublic(){
   if(/^#[0-9a-f]{6}$/i.test(d.site.theme_color||''))document.documentElement.style.setProperty('--indigo-600',d.site.theme_color);
   $('#categoryChips').innerHTML=`<button class="chip ${!state.category?'active':''}" data-category="">ทั้งหมด</button>`+state.categories.map(c=>`<button class="chip ${state.category===c.category?'active':''}" data-category="${esc(c.category)}">${esc(c.category)}</button>`).join('');
   const activeChip=$('#categoryChips .active'),scroller=$('.category-scroll');
-  if(activeChip&&scroller)scroller.scrollLeft=Math.max(0,activeChip.offsetLeft-scroller.offsetLeft-(scroller.clientWidth-activeChip.clientWidth)/2);
+  if(activeChip&&scroller)requestAnimationFrame(()=>activeChip.scrollIntoView({block:'nearest',inline:'center'}));
   $('#linkGrid').innerHTML=d.products.map(card).join('');
   $('#homeEmpty').hidden=d.products.length>0;
   $('#resultCount').textContent=`พบ ${d.total.toLocaleString('th-TH')} รายการ · หน้า ${d.page}`;

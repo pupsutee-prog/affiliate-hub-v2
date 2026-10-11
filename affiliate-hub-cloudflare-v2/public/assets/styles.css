@@ -151,8 +151,8 @@ code {
 
 /* ---------- Toolbar ---------- */
 
-.catalog-controls { display: grid; gap: 14px; margin-bottom: 18px; }
-.category-scroll { overflow-x: auto; padding: 0 0 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.catalog-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-bottom: 18px; }
+.category-scroll { min-width: 0; overflow-x: auto; padding: 0 0 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .category-scroll::-webkit-scrollbar { display: none; }
 .toolbar-right { display: flex; gap: 10px; flex-wrap: wrap; }
 .toolbar-right .field { min-width: 154px; }
