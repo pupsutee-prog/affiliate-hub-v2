@@ -10,6 +10,7 @@ const currentSite=new URLSearchParams(location.search).get('site')||'main';
 const state={site:currentSite,page:1,total:0,limit:24,products:[],categories:[],q:'',category:'',market:'',sort:'newest',admin:false,adminProducts:[],adminPage:1,adminTotal:0,sites:[],editing:null,selected:new Set(),media:[]};
 const params=(p={})=>new URLSearchParams({site:state.site,...p}).toString();
 const siteLink=s=>`${location.pathname}?site=${encodeURIComponent(s)}#/`;
+const categoryHash=category=>category?'#/category/'+encodeURIComponent(category):'#/';
 async function api(path,opts={}){
   const res=await fetch(path,{credentials:'same-origin',cache:'no-store',...opts});
   let data;try{data=await res.json();}catch{throw Error(res.status===401?'กรุณาเข้าสู่ระบบผู้ดูแล':'เซิร์ฟเวอร์ตอบกลับไม่ใช่ JSON (ตรวจสอบการตั้งค่า Login และ Functions)');}
@@ -27,8 +28,8 @@ async function loadPublic(){
  try{
   const d=await api('/api/catalog?'+params({page:state.page,limit:state.limit,q:state.q,category:state.category,market:state.market,sort:state.sort}));
   state.products=d.products;state.categories=d.categories;state.total=d.total;
-  document.title=d.site.name+' — รวมลิงก์สินค้า';$('.brand-text strong').textContent=d.site.name;$('.brand-text small').textContent=d.site.tagline||'รวมลิงก์สินค้าโปรโมชัน';
-  $('.hero h1').textContent=d.site.name;$('.hero p').textContent=d.site.tagline||'รวมลิงก์สินค้าโปรโมชันจากหลายร้านค้า';
+  document.title=state.category?state.category+' — '+d.site.name:d.site.name+' — รวมลิงก์สินค้า';$('.brand-text strong').textContent=d.site.name;$('.brand-text small').textContent=d.site.tagline||'รวมลิงก์สินค้าโปรโมชัน';
+  $('.hero h1').textContent=state.category||d.site.name;$('.hero p').textContent=state.category?'สินค้าหมวด '+state.category+' จาก '+d.site.name:d.site.tagline||'รวมลิงก์สินค้าโปรโมชันจากหลายร้านค้า';
   if(/^#[0-9a-f]{6}$/i.test(d.site.theme_color||''))document.documentElement.style.setProperty('--indigo-600',d.site.theme_color);
   $('#categoryChips').innerHTML=`<button class="chip ${!state.category?'active':''}" data-category="">ทั้งหมด</button>`+state.categories.map(c=>`<button class="chip ${state.category===c.category?'active':''}" data-category="${esc(c.category)}">${esc(c.category)}</button>`).join('');
   $('#linkGrid').innerHTML=d.products.map(card).join('');
@@ -52,12 +53,19 @@ async function productDetail(id){
  }catch(e){$('#productBody').innerHTML=`<div class="v2-alert">${esc(e.message)}</div>`;}
 }
 async function route(){
- const r=decodeURIComponent(location.hash.slice(2)||'').split('/');const view=r[0]==='admin'?'admin':r[0]==='about'?'about':r[0]==='product'?'product':'home';
+ const [section,...encodedParts]=(location.hash.slice(2)||'').split('/');
+ let detail='';try{detail=decodeURIComponent(encodedParts.join('/'));}catch{}
+ const view=section==='admin'?'admin':section==='about'?'about':section==='product'?'product':'home';
+ if(view==='home'){
+  const category=section==='category'?detail:'';
+  if(state.category!==category)state.page=1;
+  state.category=category;
+ }
  for(const el of document.querySelectorAll('.view'))el.hidden=el.id!=='view-'+view;
  document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));
  $('#stickyCta').hidden=true;
  if(view==='admin')await loadAdmin();
- else if(view==='product')await productDetail(r[1]);
+ else if(view==='product')await productDetail(detail);
  else if(view==='home')await loadPublic();
  window.scrollTo(0,0);
 }
@@ -207,7 +215,7 @@ async function bulkUrls(){
 }
 async function handleGlobalClick(e){
  const p=e.target.closest('[data-page]');if(p){const [type,direction]=p.dataset.page.split(':');if(type==='public'){state.page+=direction==='next'?1:-1;await loadPublic();}else{state.adminPage+=direction==='next'?1:-1;await loadAdminProducts();}return;}
- const cat=e.target.closest('[data-category]');if(cat){state.category=cat.dataset.category;state.page=1;await loadPublic();return;}
+ const cat=e.target.closest('[data-category]');if(cat){state.page=1;const hash=categoryHash(cat.dataset.category);if(location.hash===hash){state.category=cat.dataset.category;await loadPublic();}else location.hash=hash;return;}
  const go=e.target.closest('[data-go]');if(go){const product=state.products.find(p=>p.id===go.dataset.go);if(product)window.open(product.url,'_blank','noopener,noreferrer');return;}
  const edit=e.target.closest('[data-edit]');if(edit)return editProduct(edit.dataset.edit);
  const del=e.target.closest('[data-delete]');if(del){const x=state.adminProducts.find(p=>p.id===del.dataset.delete);if(x&&confirm('ลบสินค้า "'+x.title+'"? (เก็บร่องรอยไว้สำหรับกู้ข้อมูล)'))try{await adminApi('products/'+x.id+'?'+params(),'DELETE');notify('ลบข้อมูลแล้ว');await loadAdminProducts();await loadQuota();}catch(err){fail(err);}return;}
