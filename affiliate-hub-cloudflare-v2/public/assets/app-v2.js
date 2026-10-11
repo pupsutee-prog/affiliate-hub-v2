@@ -7,10 +7,11 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const markets={shopee:'Shopee',lazada:'Lazada',tiktok:'TikTok Shop',amazon:'Amazon'};
 const tint={'อิเล็กทรอนิกส์':'#4f46e5','บ้านและครัว':'#0f766e','ความงาม':'#be185d','แฟชั่น':'#b45309'};
 const currentSite=new URLSearchParams(location.search).get('site')||'main';
-const state={site:currentSite,page:1,total:0,limit:24,products:[],categories:[],q:'',category:'',market:'',sort:'newest',admin:false,adminProducts:[],adminPage:1,adminTotal:0,sites:[],editing:null,selected:new Set(),media:[]};
+const state={site:currentSite,page:1,total:0,limit:24,products:[],categories:[],q:'',category:'',market:'',sort:'newest',admin:false,adminProducts:[],adminCategories:[],adminPage:1,adminTotal:0,sites:[],editing:null,selected:new Set(),media:[]};
 const params=(p={})=>new URLSearchParams({site:state.site,...p}).toString();
 const siteLink=s=>`/?site=${encodeURIComponent(s)}#/`;
-const categoryHash=category=>category?'#/category/'+encodeURIComponent(category):'#/';
+const readableCategorySegment=category=>Array.from(category,char=>/[\p{L}\p{M}\p{N}_.~-]/u.test(char)?char:encodeURIComponent(char)).join('');
+const readableCategoryUrl=category=>location.origin+'/category/'+readableCategorySegment(category)+location.search;
 async function api(path,opts={}){
   const res=await fetch(path,{credentials:'same-origin',cache:'no-store',...opts});
   let data;try{data=await res.json();}catch{throw Error(res.status===401?'กรุณาเข้าสู่ระบบผู้ดูแล':'เซิร์ฟเวอร์ตอบกลับไม่ใช่ JSON (ตรวจสอบการตั้งค่า Login และ Functions)');}
@@ -30,6 +31,7 @@ async function loadPublic(){
   state.products=d.products;state.categories=d.categories;state.total=d.total;
   document.title=state.category?state.category+' — '+d.site.name:d.site.name+' — รวมลิงก์สินค้า';$('.brand-text strong').textContent=d.site.name;$('.brand-text small').textContent=d.site.tagline||'รวมลิงก์สินค้าโปรโมชัน';
   $('.hero h1').textContent=state.category||d.site.name;$('.hero p').textContent=state.category?'สินค้าหมวด '+state.category+' จาก '+d.site.name:d.site.tagline||'รวมลิงก์สินค้าโปรโมชันจากหลายร้านค้า';
+  $('#copyCategoryLink').hidden=!state.category;
   if(/^#[0-9a-f]{6}$/i.test(d.site.theme_color||''))document.documentElement.style.setProperty('--indigo-600',d.site.theme_color);
   $('#categoryChips').innerHTML=`<button class="chip ${!state.category?'active':''}" data-category="">ทั้งหมด</button>`+state.categories.map(c=>`<button class="chip ${state.category===c.category?'active':''}" data-category="${esc(c.category)}">${esc(c.category)}</button>`).join('');
   $('#linkGrid').innerHTML=d.products.map(card).join('');
@@ -80,7 +82,7 @@ async function loadAdmin(){
  try{
   const identity=await adminApi('me');state.admin=true;$('#adminLock').hidden=true;$('#adminPanel').hidden=false;$('#v2Who').textContent=identity.email;
   $('#publishLine').textContent='แก้ไขสินค้าผ่าน API โดยตรง ไม่ต้องกดเผยแพร่ข้อมูลทั้งชุด';
-  await loadSites();await Promise.all([loadAdminProducts(),loadQuota(),loadMedia()]);
+  await loadSites();await Promise.all([loadAdminProducts(),loadAdminCategories(),loadQuota(),loadMedia()]);
  }catch(e){state.admin=false;$('#adminLock').hidden=false;$('#adminPanel').hidden=true;$('#adminLock .hint').textContent='ยังไม่สามารถเข้า Admin ได้: '+e.message;}
 }
 async function loadSites(){
@@ -88,7 +90,11 @@ async function loadSites(){
  if(!d.sites.some(s=>s.slug===state.site))state.site=d.sites[0]?.slug||'main';
  $('#v2SiteSelect').innerHTML=d.sites.map(s=>`<option value="${esc(s.slug)}" ${s.slug===state.site?'selected':''}>${esc(s.name)} (${esc(s.slug)}) — ${s.products} รายการ</option>`).join('');
  $('#v2VisitSite').href=siteLink(state.site);
- $('#categoryList').innerHTML=state.categories.map(c=>`<option value="${esc(c.category||c)}"></option>`).join('');
+}
+async function loadAdminCategories(){
+ const d=await adminApi('categories?'+params());state.adminCategories=d.categories;
+ $('#categoryList').innerHTML=d.categories.map(c=>`<option value="${esc(c.category)}"></option>`).join('');
+ $('#adminCategoryList').innerHTML=d.categories.length?d.categories.map(c=>`<div class="admin-category-row"><span><strong>${esc(c.category)}</strong><small class="hint">${c.n.toLocaleString('th-TH')} สินค้า</small></span><button class="btn btn-danger btn-sm" type="button" data-remove-category="${esc(c.category)}">ลบหมวด</button></div>`).join(''):'<p class="hint">ยังไม่มีหมวดหมู่ เพิ่มได้จากช่องหมวดหมู่ของสินค้า</p>';
 }
 async function loadAdminProducts(){
  const d=await adminApi('products?'+params({page:state.adminPage}));state.adminProducts=d.products;state.adminTotal=d.total;state.selected.clear();
@@ -118,7 +124,7 @@ async function loadMedia(){
 function dataFromForm(){const d=Object.fromEntries(new FormData($('#linkForm')).entries());d.site=state.site;d.image=$('#imageInput').value;d.status='published';return d;}
 function resetForm(){state.editing=null;$('#linkForm').reset();$('#formTitle').textContent='เพิ่มลิงก์ใหม่';$('#cancelEdit').hidden=true;showImage('');}
 function editProduct(id){const p=state.adminProducts.find(p=>p.id===id);if(!p)return;state.editing=id;for(const [k,v] of Object.entries({title:p.title,market:p.market,category:p.category,url:p.url,note:p.note,why:p.why,description:p.description,subId:p.subId})){const el=$('#linkForm [name="'+k+'"]');if(el)el.value=v||'';}showImage(p.image);$('#formTitle').textContent='แก้ไข: '+p.title;$('#cancelEdit').hidden=false;$('#linkForm').scrollIntoView({behavior:'smooth'});}
-async function onForm(e){e.preventDefault();const data=dataFromForm();try{const submit=$('#submitBtn');submit.disabled=true;await adminApi(state.editing?'products/'+state.editing:'products',state.editing?'PATCH':'POST',data);notify('บันทึกข้อมูลสำเร็จ');resetForm();state.adminPage=1;await Promise.all([loadAdminProducts(),loadQuota()]);}catch(err){fail(err);}finally{$('#submitBtn').disabled=false;}}
+async function onForm(e){e.preventDefault();const data=dataFromForm();try{const submit=$('#submitBtn');submit.disabled=true;await adminApi(state.editing?'products/'+state.editing:'products',state.editing?'PATCH':'POST',data);notify('บันทึกข้อมูลสำเร็จ');resetForm();state.adminPage=1;await Promise.all([loadAdminProducts(),loadAdminCategories(),loadQuota()]);}catch(err){fail(err);}finally{$('#submitBtn').disabled=false;}}
 async function uploadImage(file){
  if(!file)return;
  if(!['image/jpeg','image/png','image/webp','image/avif'].includes(file.type)){notify('รับ JPEG, PNG, WebP, AVIF เท่านั้น',true);return;}
@@ -164,7 +170,7 @@ async function importFile(file){
   if(!items.length)throw Error('ไม่มีข้อมูลสินค้าในไฟล์');
   const mode=$('input[name="importMode"]:checked').value;
   if(mode==='replace'&&!confirm(`แทนที่สินค้าของ ${state.site} ทั้งหมดด้วยข้อมูล ${items.length} รายการ? ควร Export Backup ก่อน`))return;
-  const done=await importItems(items,mode);notify(`นำเข้า ${done} รายการสำเร็จ`);await loadAdminProducts();await loadQuota();
+  const done=await importItems(items,mode);notify(`นำเข้า ${done} รายการสำเร็จ`);await Promise.all([loadAdminProducts(),loadAdminCategories(),loadQuota()]);
  }catch(e){fail(e);}finally{$('#bulkImportFile').value='';}
 }
 async function backup(format){
@@ -180,7 +186,7 @@ async function backup(format){
 async function createSite(){
  const slug=prompt('Slug ภาษาอังกฤษ เช่น tech-deals (2–40 ตัวอักษร)');if(!slug)return;
  const name=prompt('ชื่อเว็บไซต์');if(!name)return;
- try{await adminApi('sites','POST',{slug,name,tagline:'รวมลิงก์สินค้าโปรโมชัน'});state.site=slug;state.adminPage=1;resetForm();await loadSites();await Promise.all([loadAdminProducts(),loadQuota(),loadMedia()]);notify('สร้างเว็บไซต์สำเร็จ');}catch(e){fail(e);}
+ try{await adminApi('sites','POST',{slug,name,tagline:'รวมลิงก์สินค้าโปรโมชัน'});state.site=slug;state.adminPage=1;resetForm();await loadSites();await Promise.all([loadAdminProducts(),loadAdminCategories(),loadQuota(),loadMedia()]);notify('สร้างเว็บไซต์สำเร็จ');}catch(e){fail(e);}
 }
 async function editSite(){
  const site=state.sites.find(s=>s.slug===state.site);if(!site)return;
@@ -206,7 +212,7 @@ async function bulkUrls(){
    }));
    for(const result of batch){if(result.item)items.push(result.item);else failed.push(result);}
   }
-  if(items.length){await importItems(items);await Promise.all([loadAdminProducts(),loadQuota()]);}
+  if(items.length){await importItems(items);await Promise.all([loadAdminProducts(),loadAdminCategories(),loadQuota()]);}
   $('#bulkUrlInput').value=failed.map(x=>x.line).join('\n');
   message.textContent=failed.length?`เพิ่ม ${items.length} รายการ · ดึงข้อมูลไม่ได้ ${failed.length} ลิงก์ (${failed.slice(0,2).map(x=>x.error).join('; ')}) — ลิงก์ที่เหลือยังอยู่ในช่อง`:`เพิ่ม ${items.length} รายการ พร้อมชื่อและรูปสินค้า`;
   notify(message.textContent,failed.length>0);
@@ -215,10 +221,11 @@ async function bulkUrls(){
 }
 async function handleGlobalClick(e){
  const p=e.target.closest('[data-page]');if(p){const [type,direction]=p.dataset.page.split(':');if(type==='public'){state.page+=direction==='next'?1:-1;await loadPublic();}else{state.adminPage+=direction==='next'?1:-1;await loadAdminProducts();}return;}
- const cat=e.target.closest('[data-category]');if(cat){const category=cat.dataset.category;const slug=state.categories.find(c=>c.category===category)?.slug;if(category&&!slug){location.hash=categoryHash(category);}else location.assign((category?'/category/'+encodeURIComponent(slug):'/')+location.search);return;}
+ const cat=e.target.closest('[data-category]');if(cat){const category=cat.dataset.category;location.assign((category?'/category/'+encodeURIComponent(category):'/')+location.search);return;}
  const go=e.target.closest('[data-go]');if(go){const product=state.products.find(p=>p.id===go.dataset.go);if(product)window.open(product.url,'_blank','noopener,noreferrer');return;}
  const edit=e.target.closest('[data-edit]');if(edit)return editProduct(edit.dataset.edit);
- const del=e.target.closest('[data-delete]');if(del){const x=state.adminProducts.find(p=>p.id===del.dataset.delete);if(x&&confirm('ลบสินค้า "'+x.title+'"? (เก็บร่องรอยไว้สำหรับกู้ข้อมูล)'))try{await adminApi('products/'+x.id+'?'+params(),'DELETE');notify('ลบข้อมูลแล้ว');await loadAdminProducts();await loadQuota();}catch(err){fail(err);}return;}
+ const del=e.target.closest('[data-delete]');if(del){const x=state.adminProducts.find(p=>p.id===del.dataset.delete);if(x&&confirm('ลบสินค้า "'+x.title+'"? (เก็บร่องรอยไว้สำหรับกู้ข้อมูล)'))try{await adminApi('products/'+x.id+'?'+params(),'DELETE');notify('ลบข้อมูลแล้ว');await Promise.all([loadAdminProducts(),loadAdminCategories(),loadQuota()]);}catch(err){fail(err);}return;}
+ const removeCategory=e.target.closest('[data-remove-category]');if(removeCategory){const name=removeCategory.dataset.removeCategory;const count=state.adminCategories.find(c=>c.category===name)?.n||0;if(!confirm(`ลบหมวด "${name}"? สินค้า ${count} รายการจะยังอยู่ แต่จะไม่มีหมวดหมู่`))return;try{const result=await adminApi('categories?'+params(),'DELETE',{category:name});await Promise.all([loadAdminCategories(),loadAdminProducts()]);notify(`ลบหมวดแล้ว สินค้า ${result.updatedProducts} รายการยังอยู่`);}catch(err){fail(err);}return;}
  const media=e.target.closest('[data-media-delete]');if(media&&confirm('ลบไฟล์ภาพนี้จาก Cloudinary จริงหรือไม่?'))try{await adminApi('media/'+media.dataset.media+'?'+params(),'DELETE');await loadMedia();await loadQuota();notify('ลบไฟล์แล้ว');}catch(err){fail(err);}
 }
 function hooks(){
@@ -228,13 +235,15 @@ function hooks(){
  $('#marketFilter').innerHTML='<option value="">ทั้งหมด</option>'+Object.entries(markets).map(([v,n])=>`<option value="${v}">${n}</option>`).join('');
  $('#marketFilter').addEventListener('change',e=>{state.market=e.target.value;state.page=1;loadPublic();});
  $('#sortSelect').addEventListener('change',e=>{state.sort=e.target.value;state.page=1;loadPublic();});
+ $('#copyCategoryLink').addEventListener('click',async()=>{if(!state.category)return;try{await navigator.clipboard.writeText(`หมวดหมู่: ${state.category}\n${readableCategoryUrl(state.category)}`);notify('คัดลอกชื่อหมวดและลิงก์แล้ว');}catch{notify('คัดลอกไม่ได้ กรุณาคัดลอกจากแถบที่อยู่',true);}});
  $('#formMarket').innerHTML=Object.entries(markets).map(([v,n])=>`<option value="${v}">${n}</option>`).join('');
  $('#linkForm').addEventListener('submit',onForm);$('#cancelEdit').addEventListener('click',resetForm);
  $('#imageInput').addEventListener('input',e=>showImage(e.target.value));$('#clearImageBtn').addEventListener('click',()=>showImage(''));
  $('#fetchImageBtn').addEventListener('click',fetchSingleProduct);
  $('#uploadImageBtn').addEventListener('click',()=>$('#imageFile').click());$('#imageFile').addEventListener('change',e=>uploadImage(e.target.files?.[0]));
  $('#logoutBtn').addEventListener('click',()=>{location.href='/api/auth/logout';});
- $('#v2SiteSelect').addEventListener('change',async e=>{state.site=e.target.value;state.adminPage=1;resetForm();$('#v2VisitSite').href=siteLink(state.site);await Promise.all([loadAdminProducts(),loadQuota(),loadMedia()]);});
+ $('#v2SiteSelect').addEventListener('change',async e=>{state.site=e.target.value;state.adminPage=1;resetForm();$('#v2VisitSite').href=siteLink(state.site);await Promise.all([loadAdminProducts(),loadAdminCategories(),loadQuota(),loadMedia()]);});
+ $('#refreshCategories').addEventListener('click',()=>loadAdminCategories().catch(fail));
  $('#v2NewSite').addEventListener('click',createSite);$('#v2EditSite').addEventListener('click',editSite);
  $('#v2RefreshQuota').addEventListener('click',loadQuota);$('#v2RefreshMedia').addEventListener('click',loadMedia);
  $('#exportBtn').addEventListener('click',()=>backup('json'));$('#exportCsvBtn').addEventListener('click',()=>backup('csv'));
@@ -244,8 +253,8 @@ function hooks(){
  $('#bulkTabs').addEventListener('click',e=>{const b=e.target.closest('[data-bulk]');if(!b)return;document.querySelectorAll('#bulkTabs .chip').forEach(x=>x.classList.toggle('active',x===b));$('#bulkUrls').hidden=b.dataset.bulk!=='urls';$('#bulkFile').hidden=b.dataset.bulk!=='file';});
  $('#adminTableBody').addEventListener('change',e=>{const s=e.target.dataset.select;if(!s)return;if(e.target.checked)state.selected.add(s);else state.selected.delete(s);$('#rowBulkBar').hidden=!state.selected.size;$('#rowBulkCount').textContent=state.selected.size+' รายการ';});
  $('#selectAllRows').addEventListener('change',e=>{state.selected.clear();document.querySelectorAll('[data-select]').forEach(box=>{box.checked=e.target.checked;if(box.checked)state.selected.add(box.dataset.select);});$('#rowBulkBar').hidden=!state.selected.size;$('#rowBulkCount').textContent=state.selected.size+' รายการ';});
- $('#bulkDeleteBtn').addEventListener('click',async()=>{if(!state.selected.size||!confirm('ยืนยันลบ '+state.selected.size+' รายการ?'))return;try{for(const id of state.selected)await adminApi('products/'+id+'?'+params(),'DELETE');await loadAdminProducts();notify('ลบรายการที่เลือกแล้ว');}catch(e){fail(e);}});
- $('#bulkApplyCategoryBtn').addEventListener('click',async()=>{const cat=$('#bulkCategoryInput').value.trim();if(!cat||!state.selected.size)return;try{for(const id of state.selected){const p=state.adminProducts.find(x=>x.id===id);if(p)await adminApi('products/'+id,'PATCH',{...p,site:state.site,category:cat});}await loadAdminProducts();notify('เปลี่ยนหมวดหมู่แล้ว');}catch(e){fail(e);}});
+ $('#bulkDeleteBtn').addEventListener('click',async()=>{if(!state.selected.size||!confirm('ยืนยันลบ '+state.selected.size+' รายการ?'))return;try{for(const id of state.selected)await adminApi('products/'+id+'?'+params(),'DELETE');await Promise.all([loadAdminProducts(),loadAdminCategories()]);notify('ลบรายการที่เลือกแล้ว');}catch(e){fail(e);}});
+ $('#bulkApplyCategoryBtn').addEventListener('click',async()=>{const cat=$('#bulkCategoryInput').value.trim();if(!cat||!state.selected.size)return;try{for(const id of state.selected){const p=state.adminProducts.find(x=>x.id===id);if(p)await adminApi('products/'+id,'PATCH',{...p,site:state.site,category:cat});}await Promise.all([loadAdminProducts(),loadAdminCategories()]);notify('เปลี่ยนหมวดหมู่แล้ว');}catch(e){fail(e);}});
  $('#bulkClearSelectionBtn').addEventListener('click',()=>{state.selected.clear();document.querySelectorAll('[data-select]').forEach(b=>b.checked=false);$('#rowBulkBar').hidden=true;});
  $('#menuBtn').addEventListener('click',()=>{const open=$('#menuBtn').getAttribute('aria-expanded')!=='true';$('#menuBtn').setAttribute('aria-expanded',String(open));$('.nav').classList.toggle('open',open);});
  window.addEventListener('hashchange',route);
