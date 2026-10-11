@@ -1,16 +1,20 @@
 import {publicSite} from '../_lib/db.js';
-import {categorySlug} from '../_lib/category-link.js';
+import {categorySlug,oldCategoryName,oldGeneratedSlug} from '../_lib/category-link.js';
 
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
-export async function onRequestGet({request,env,params}){
+export async function onRequestGet({request,env}){
   try{
+    const url=new URL(request.url);
+    let requested;
+    try{requested=decodeURIComponent(url.pathname.replace(/^\/category\//,'').replace(/\/$/,''));}
+    catch{return new Response('Category not found',{status:404});}
     const site=await publicSite(env.DB,request);
     const categories=await env.DB.prepare("SELECT category FROM products WHERE site_id=? AND status='published' AND deleted_at IS NULL AND category<>'' GROUP BY category LIMIT 100").bind(site.id).all();
-    const category=categories.results.find(row=>categorySlug(row.category)===params.slug)?.category;
+    const category=categories.results.find(row=>categorySlug(row.category)===requested)?.category
+      ??categories.results.find(row=>row.category===oldCategoryName(requested)||oldGeneratedSlug(row.category)===requested)?.category;
     if(!category)return new Response('Category not found',{status:404});
 
-    const url=new URL(request.url);
     const canonical=url.origin+url.pathname+url.search;
     const title=category+' | '+site.name;
     const description='สินค้าหมวด'+category+' จาก '+site.name+' — รวมลิงก์สินค้าโปรโมชันจากหลายร้านค้า';
