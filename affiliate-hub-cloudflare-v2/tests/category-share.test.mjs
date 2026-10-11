@@ -9,7 +9,7 @@ const site={id:'site_main',slug:'main',name:'Affiliate Hub',is_active:1};
 const categories=[{category:'อิเล็กทรอนิกส์'},{category:'ของใหม่ & ดี'}];
 const env={
   DB:{prepare(query){return {bind(){return {
-    async first(){return query.includes('WHERE host=')?null:site},
+    async first(){return query.includes('WHERE host=')?null:query.includes('SELECT image,title FROM products')?{image:'https://images.example.test/category.jpg',title:'ตัวอย่างสินค้า'}:site},
     async all(){return {results:categories}},
   }}}}},
   ASSETS:{async fetch(){return new Response(html,{headers:{'content-type':'text/html'}})}},
@@ -27,6 +27,8 @@ test('category page gives link previews a Thai title and opens the selected cate
   assert.equal(response.status,200);
   assert.match(page,/<title>อิเล็กทรอนิกส์ \| Affiliate Hub<\/title>/);
   assert.match(page,/<meta property="og:title" content="อิเล็กทรอนิกส์">/);
+  assert.match(page,/<meta property="og:image" content="https:\/\/images\.example\.test\/category\.jpg">/);
+  assert.equal((page.match(/property="og:title"/g)||[]).length,1);
   assert.match(page,/<meta name="category-name" content="อิเล็กทรอนิกส์">/);
   assert.match(page,/<base href="\/">/);
 });
