@@ -61,3 +61,26 @@ test('D1 full lifecycle: create site, create/edit/search/delete product, import/
  r=await call('/api/admin/sites');assert.equal(r.data.sites.length,2);
  r=await call('/api/admin/products','POST',{site:'tech-items',title:'Denied',market:'shopee',url:'https://shopee.co.th/item'},false);assert.equal(r.status,401);
 });
+
+test('random catalog order stays stable across pages while filters and explicit sorting work',async(t)=>{
+ const {call}=await withSession(t);
+ for(let i=0;i<12;i++){
+  const r=await call('/api/admin/products','POST',{site:'main',title:`Item ${String(i).padStart(2,'0')}`,market:i%2?'lazada':'shopee',url:`https://shopee.co.th/item-${i}`,category:i%2?'บ้านและครัว':'อิเล็กทรอนิกส์'});
+  assert.equal(r.status,201);
+ }
+ const list=async(query)=>{
+  const r=await call('/api/catalog?site=main&'+query);
+  assert.equal(r.status,200,JSON.stringify(r.data));
+  return r.data.products.map(p=>p.id);
+ };
+ const first=await list('sort=random&seed=123&page=1&limit=5');
+ const second=await list('sort=random&seed=123&page=2&limit=5');
+ const third=await list('sort=random&seed=123&page=3&limit=5');
+ assert.deepEqual(first,await list('sort=random&seed=123&page=1&limit=5'));
+ assert.equal(new Set([...first,...second,...third]).size,12);
+ assert.notDeepEqual([...first,...second,...third],await list('sort=random&seed=124&page=1&limit=24'));
+ assert.equal((await list('sort=random&seed=123&category='+encodeURIComponent('บ้านและครัว'))).length,6);
+ assert.equal((await list('sort=random&seed=123&market=shopee')).length,6);
+ const title=await call('/api/catalog?site=main&sort=title');
+ assert.deepEqual(title.data.products.map(p=>p.title),Array.from({length:12},(_,i)=>`Item ${String(i).padStart(2,'0')}`));
+});
