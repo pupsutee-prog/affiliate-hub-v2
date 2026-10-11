@@ -33,7 +33,9 @@ async function loadPublic(){
   document.title=state.category?state.category+' — '+d.site.name:d.site.name+' — รวมลิงก์สินค้า';$('.brand-text strong').textContent=d.site.name;$('.brand-text small').textContent=d.site.tagline||'รวมลิงก์สินค้าโปรโมชัน';
   $('#catalogTitle').textContent=state.category||'สินค้าทั้งหมด';
   $('#copyCategoryLink').hidden=!state.category;
-  if(/^#[0-9a-f]{6}$/i.test(d.site.theme_color||''))document.documentElement.style.setProperty('--indigo-600',d.site.theme_color);
+  const siteTheme=String(d.site.theme_color||'').toLowerCase();
+  if(/^#[0-9a-f]{6}$/.test(siteTheme)&&siteTheme!=='#4f46e5')document.documentElement.style.setProperty('--indigo-600',siteTheme);
+  else document.documentElement.style.removeProperty('--indigo-600');
   $('#categoryChips').innerHTML=`<button class="chip ${!state.category?'active':''}" data-category="">ทั้งหมด</button>`+state.categories.map(c=>`<button class="chip ${state.category===c.category?'active':''}" data-category="${esc(c.category)}">${esc(c.category)}</button>`).join('');
   const activeChip=$('#categoryChips .active'),scroller=$('.category-scroll');
   if(activeChip&&scroller)requestAnimationFrame(()=>activeChip.scrollIntoView({block:'nearest',inline:'center'}));
