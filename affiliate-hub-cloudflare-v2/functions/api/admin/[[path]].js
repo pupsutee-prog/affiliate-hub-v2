@@ -50,6 +50,23 @@ export async function onRequest(context){
       }
     }
 
+    if(action==='categories'){
+      const site=await requireSite(env.DB,u);
+      if(method==='GET'){
+        const rows=await env.DB.prepare("SELECT category,COUNT(*) AS n FROM products WHERE site_id=? AND deleted_at IS NULL AND category<>'' GROUP BY category ORDER BY category LIMIT 100").bind(site.id).all();
+        return json({ok:true,categories:rows.results});
+      }
+      if(method==='DELETE'&&!id){
+        const body=await parseBody(request);
+        const name=cleanText(body.category,40);
+        must(name&&name===body.category,400,'Category name is required');
+        const result=await env.DB.prepare("UPDATE products SET category='',updated_at=? WHERE site_id=? AND category=? AND deleted_at IS NULL").bind(stamp(),site.id,name).run();
+        must(result.meta.changes,404,'Category not found');
+        await audit(env.DB,site.id,actor.email,'category.delete',name);
+        return json({ok:true,updatedProducts:result.meta.changes});
+      }
+    }
+
     if(action==='products') {
       if(method==='GET'){
         const site=await requireSite(env.DB,u);
