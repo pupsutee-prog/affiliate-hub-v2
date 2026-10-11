@@ -30,14 +30,15 @@ async function loadPublic(){
   const d=await api('/api/catalog?'+params({page:state.page,limit:state.limit,q:state.q,category:state.category,market:state.market,sort:state.sort}));
   state.products=d.products;state.categories=d.categories;state.total=d.total;
   document.title=state.category?state.category+' — '+d.site.name:d.site.name+' — รวมลิงก์สินค้า';$('.brand-text strong').textContent=d.site.name;$('.brand-text small').textContent=d.site.tagline||'รวมลิงก์สินค้าโปรโมชัน';
-  $('.hero h1').textContent=state.category||d.site.name;$('.hero p').textContent=state.category?'สินค้าหมวด '+state.category+' จาก '+d.site.name:d.site.tagline||'รวมลิงก์สินค้าโปรโมชันจากหลายร้านค้า';
+  $('#catalogTitle').textContent=state.category||'สินค้าทั้งหมด';
   $('#copyCategoryLink').hidden=!state.category;
   if(/^#[0-9a-f]{6}$/i.test(d.site.theme_color||''))document.documentElement.style.setProperty('--indigo-600',d.site.theme_color);
   $('#categoryChips').innerHTML=`<button class="chip ${!state.category?'active':''}" data-category="">ทั้งหมด</button>`+state.categories.map(c=>`<button class="chip ${state.category===c.category?'active':''}" data-category="${esc(c.category)}">${esc(c.category)}</button>`).join('');
+  const activeChip=$('#categoryChips .active'),scroller=$('.category-scroll');
+  if(activeChip&&scroller)scroller.scrollLeft=Math.max(0,activeChip.offsetLeft-scroller.offsetLeft-(scroller.clientWidth-activeChip.clientWidth)/2);
   $('#linkGrid').innerHTML=d.products.map(card).join('');
   $('#homeEmpty').hidden=d.products.length>0;
   $('#resultCount').textContent=`พบ ${d.total.toLocaleString('th-TH')} รายการ · หน้า ${d.page}`;
-  $('#heroStats').innerHTML=`<div class="hero-stat"><b>${d.total.toLocaleString('th-TH')}</b><span>รายการที่พบ</span></div><div class="hero-stat"><b>${d.categories.length}</b><span>หมวดหมู่</span></div>`;
   renderPager('linkGrid',state.page,Math.ceil(state.total/state.limit),'public');
  }catch(e){$('#linkGrid').innerHTML=`<div class="v2-alert">โหลดข้อมูลไม่สำเร็จ: ${esc(e.message)}<p class="hint">โปรดตรวจสอบ D1 Binding และรันไฟล์ schema/001_init.sql</p></div>`;}
 }
@@ -52,6 +53,8 @@ async function productDetail(id){
   const data=await api('/api/catalog?'+params({id})),p=data.product;
   $('#productCrumbs').innerHTML=`<a href="#/">หน้าแรก</a><span>›</span><span class="crumb-current">${esc(p.title)}</span>`;
   $('#productBody').innerHTML=`<article class="pd"><div class="pd-media">${photo(p)}</div><div class="pd-info"><span class="badge badge-inline" data-market="${esc(p.market)}">${esc(markets[p.market]||p.market)}</span>${p.category?`<span class="pd-cat">${esc(p.category)}</span>`:''}<h1 class="pd-title">${esc(p.title)}</h1>${p.note?`<p class="pd-note">${esc(p.note)}</p>`:''}${p.why?`<div class="pd-why"><span class="pd-why-label">ทำไมเราถึงแนะนำ</span><p>${esc(p.why)}</p></div>`:''}<div class="pd-actions"><a class="btn-go btn-go-lg" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer sponsored">ไปหน้าสินค้า ↗</a></div><p class="pd-disclosure">ลิงก์นี้เป็นลิงก์ affiliate เราอาจได้รับค่าคอมมิชชัน</p></div></article>${p.description?`<section class="panel pd-section"><h2>รายละเอียดจากร้านค้า</h2><p class="pre-line">${esc(p.description)}</p></section>`:''}`;
+  $('#stickyCta').innerHTML=`<a class="btn-go" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer sponsored">ไปหน้าสินค้า ↗</a>`;
+  $('#stickyCta').hidden=false;
  }catch(e){$('#productBody').innerHTML=`<div class="v2-alert">${esc(e.message)}</div>`;}
 }
 async function route(){
@@ -98,7 +101,7 @@ async function loadAdminCategories(){
 }
 async function loadAdminProducts(){
  const d=await adminApi('products?'+params({page:state.adminPage}));state.adminProducts=d.products;state.adminTotal=d.total;state.selected.clear();
- $('#adminTableBody').innerHTML=d.products.map(p=>`<tr><td><input type="checkbox" data-select="${esc(p.id)}" aria-label="เลือก ${esc(p.title)}"></td><td><div style="display:flex;gap:10px;align-items:center">${p.image?`<img class="row-thumb" src="${esc(p.image)}" alt="" loading="lazy">`:''}<span>${esc(p.title)} ${p.status==='draft'?'<small>(ฉบับร่าง)</small>':''}</span></div></td><td>${esc(markets[p.market]||p.market)}</td><td>${esc(p.category)}</td><td class="num">${p.status==='draft'?'ร่าง':'เผยแพร่'}</td><td><button class="btn btn-ghost btn-sm" data-edit="${esc(p.id)}">แก้ไข</button><button class="btn btn-danger btn-sm" data-delete="${esc(p.id)}">ลบ</button></td></tr>`).join('');
+ $('#adminTableBody').innerHTML=d.products.map(p=>`<tr><td><input type="checkbox" data-select="${esc(p.id)}" aria-label="เลือก ${esc(p.title)}"></td><td><div style="display:flex;gap:10px;align-items:center">${p.image?`<img class="row-thumb" src="${esc(p.image)}" alt="" loading="lazy">`:''}<span>${esc(p.title)} ${p.status==='draft'?'<small>(ฉบับร่าง)</small>':''}</span></div></td><td data-label="ตลาด">${esc(markets[p.market]||p.market)}</td><td data-label="หมวด">${esc(p.category)}</td><td class="num" data-label="สถานะ">${p.status==='draft'?'ร่าง':'เผยแพร่'}</td><td><button class="btn btn-ghost btn-sm" data-edit="${esc(p.id)}">แก้ไข</button><button class="btn btn-danger btn-sm" data-delete="${esc(p.id)}">ลบ</button></td></tr>`).join('');
  $('#storageLine').textContent=`รายการทั้งหมดของเว็บไซต์นี้ ${d.total.toLocaleString('th-TH')} · แสดงครั้งละ ${d.limit} รายการ`;
  $('#statCards').innerHTML=`<div class="hero-stat"><b>${d.total.toLocaleString('th-TH')}</b><span>รายการสินค้าของเว็บไซต์นี้</span></div>`;
  $('#rowBulkBar').hidden=true;
