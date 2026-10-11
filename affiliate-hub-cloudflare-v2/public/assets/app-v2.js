@@ -7,7 +7,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const markets={shopee:'Shopee',lazada:'Lazada',tiktok:'TikTok Shop',amazon:'Amazon'};
 const tint={'อิเล็กทรอนิกส์':'#4f46e5','บ้านและครัว':'#0f766e','ความงาม':'#be185d','แฟชั่น':'#b45309'};
 const currentSite=new URLSearchParams(location.search).get('site')||'main';
-const state={site:currentSite,page:1,total:0,limit:24,products:[],categories:[],q:'',category:'',market:'',sort:'newest',admin:false,adminProducts:[],adminCategories:[],adminPage:1,adminTotal:0,sites:[],editing:null,selected:new Set(),media:[]};
+const randomSeed=crypto.getRandomValues(new Uint32Array(1))[0]%2147483646+1;
+const state={site:currentSite,page:1,total:0,limit:24,products:[],categories:[],q:'',category:'',market:'',sort:'random',admin:false,adminProducts:[],adminCategories:[],adminPage:1,adminTotal:0,sites:[],editing:null,selected:new Set(),media:[]};
 const params=(p={})=>new URLSearchParams({site:state.site,...p}).toString();
 const siteLink=s=>`/?site=${encodeURIComponent(s)}#/`;
 const readableCategorySegment=category=>Array.from(category,char=>/[\p{L}\p{M}\p{N}_.~-]/u.test(char)?char:encodeURIComponent(char)).join('');
@@ -27,7 +28,7 @@ function photo(p,cls=''){
 function card(p){return `<article class="card"><div class="card-media"><a class="media-link" href="#/product/${encodeURIComponent(p.id)}">${photo(p)}</a><span class="badge" data-market="${esc(p.market)}">${esc(markets[p.market]||p.market)}</span></div><div class="card-body">${p.category?`<span class="card-cat">${esc(p.category)}</span>`:''}<h3 class="card-title"><a href="#/product/${encodeURIComponent(p.id)}">${esc(p.title)}</a></h3>${p.why?`<p class="card-why">${esc(p.why)}</p>`:''}<div class="card-foot"><button class="btn-go" type="button" data-go="${esc(p.id)}">ไปหน้าสินค้า ↗</button></div></div></article>`;}
 async function loadPublic(){
  try{
-  const d=await api('/api/catalog?'+params({page:state.page,limit:state.limit,q:state.q,category:state.category,market:state.market,sort:state.sort}));
+  const d=await api('/api/catalog?'+params({page:state.page,limit:state.limit,q:state.q,category:state.category,market:state.market,sort:state.sort,seed:randomSeed}));
   state.products=d.products;state.categories=d.categories;state.total=d.total;
   document.title=state.category?state.category+' — '+d.site.name:d.site.name+' — รวมลิงก์สินค้า';$('.brand-text strong').textContent=d.site.name;$('.brand-text small').textContent=d.site.tagline||'รวมลิงก์สินค้าโปรโมชัน';
   $('#catalogTitle').textContent=state.category||'สินค้าทั้งหมด';
