@@ -7,12 +7,14 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const markets={shopee:'Shopee',lazada:'Lazada',tiktok:'TikTok Shop',amazon:'Amazon'};
 const tint={'อิเล็กทรอนิกส์':'#4f46e5','บ้านและครัว':'#0f766e','ความงาม':'#be185d','แฟชั่น':'#b45309'};
 const currentSite=new URLSearchParams(location.search).get('site')||'main';
+const homeUrl='/'+location.search;
 const randomSeed=crypto.getRandomValues(new Uint32Array(1))[0]%2147483646+1;
 const state={site:currentSite,page:1,total:0,limit:24,products:[],categories:[],q:'',category:'',market:'',sort:'random',admin:false,adminProducts:[],adminCategories:[],adminPage:1,adminTotal:0,sites:[],editing:null,selected:new Set(),media:[]};
 const params=(p={})=>new URLSearchParams({site:state.site,...p}).toString();
 const siteLink=s=>`/?site=${encodeURIComponent(s)}#/`;
 const readableCategorySegment=category=>Array.from(category,char=>/[\p{L}\p{M}\p{N}_.~-]/u.test(char)?char:encodeURIComponent(char)).join('');
 const readableCategoryUrl=category=>location.origin+'/category/'+readableCategorySegment(category)+location.search;
+const productUrl=id=>location.origin+'/product/'+encodeURIComponent(id)+location.search;
 async function api(path,opts={}){
   const res=await fetch(path,{credentials:'same-origin',cache:'no-store',...opts});
   let data;try{data=await res.json();}catch{throw Error(res.status===401?'กรุณาเข้าสู่ระบบผู้ดูแล':'เซิร์ฟเวอร์ตอบกลับไม่ใช่ JSON (ตรวจสอบการตั้งค่า Login และ Functions)');}
@@ -25,7 +27,7 @@ function fail(error){notify(error.message||String(error),true);}
 function photo(p,cls=''){
   return `<div class="placeholder" style="background:${tint[p.category]||'#475569'}">${esc(String(p.title||'?').slice(0,2))}</div>${p.image?`<img class="${cls}" src="${esc(p.image)}" alt="${esc(p.title)}" loading="lazy">`:''}`;
 }
-function card(p){return `<article class="card"><div class="card-media"><a class="media-link" href="#/product/${encodeURIComponent(p.id)}">${photo(p)}</a><span class="badge" data-market="${esc(p.market)}">${esc(markets[p.market]||p.market)}</span></div><div class="card-body">${p.category?`<span class="card-cat">${esc(p.category)}</span>`:''}<h3 class="card-title"><a href="#/product/${encodeURIComponent(p.id)}">${esc(p.title)}</a></h3>${p.why?`<p class="card-why">${esc(p.why)}</p>`:''}<div class="card-foot"><button class="btn-go" type="button" data-go="${esc(p.id)}">ไปหน้าสินค้า ↗</button></div></div></article>`;}
+function card(p){return `<article class="card"><div class="card-media"><a class="media-link" href="${esc(productUrl(p.id))}">${photo(p)}</a><span class="badge" data-market="${esc(p.market)}">${esc(markets[p.market]||p.market)}</span></div><div class="card-body">${p.category?`<span class="card-cat">${esc(p.category)}</span>`:''}<h3 class="card-title"><a href="${esc(productUrl(p.id))}">${esc(p.title)}</a></h3>${p.why?`<p class="card-why">${esc(p.why)}</p>`:''}<div class="card-foot"><button class="btn-go" type="button" data-go="${esc(p.id)}">ไปหน้าสินค้า ↗</button></div></div></article>`;}
 async function loadPublic(){
  try{
   const d=await api('/api/catalog?'+params({page:state.page,limit:state.limit,q:state.q,category:state.category,market:state.market,sort:state.sort,seed:randomSeed}));
@@ -54,8 +56,8 @@ function renderPager(afterId,page,last,type){
 async function productDetail(id){
  try{
   const data=await api('/api/catalog?'+params({id})),p=data.product;
-  $('#productCrumbs').innerHTML=`<a href="#/">หน้าแรก</a><span>›</span><span class="crumb-current">${esc(p.title)}</span>`;
-  $('#productBody').innerHTML=`<article class="pd"><div class="pd-media">${photo(p)}</div><div class="pd-info"><span class="badge badge-inline" data-market="${esc(p.market)}">${esc(markets[p.market]||p.market)}</span>${p.category?`<span class="pd-cat">${esc(p.category)}</span>`:''}<h1 class="pd-title">${esc(p.title)}</h1>${p.note?`<p class="pd-note">${esc(p.note)}</p>`:''}${p.why?`<div class="pd-why"><span class="pd-why-label">ทำไมเราถึงแนะนำ</span><p>${esc(p.why)}</p></div>`:''}<div class="pd-actions"><a class="btn-go btn-go-lg" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer sponsored">ไปหน้าสินค้า ↗</a></div><p class="pd-disclosure">ลิงก์นี้เป็นลิงก์ affiliate เราอาจได้รับค่าคอมมิชชัน</p></div></article>${p.description?`<section class="panel pd-section"><h2>รายละเอียดจากร้านค้า</h2><p class="pre-line">${esc(p.description)}</p></section>`:''}`;
+  $('#productCrumbs').innerHTML=`<a href="${esc(homeUrl)}">หน้าแรก</a><span>›</span><span class="crumb-current">${esc(p.title)}</span>`;
+  $('#productBody').innerHTML=`<article class="pd"><div class="pd-media">${photo(p)}</div><div class="pd-info"><span class="badge badge-inline" data-market="${esc(p.market)}">${esc(markets[p.market]||p.market)}</span>${p.category?`<span class="pd-cat">${esc(p.category)}</span>`:''}<h1 class="pd-title">${esc(p.title)}</h1>${p.note?`<p class="pd-note">${esc(p.note)}</p>`:''}${p.why?`<div class="pd-why"><span class="pd-why-label">ทำไมเราถึงแนะนำ</span><p>${esc(p.why)}</p></div>`:''}<div class="pd-actions"><a class="btn-go btn-go-lg" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer sponsored">ไปหน้าสินค้า ↗</a><button class="btn btn-ghost" type="button" data-copy-product="${esc(p.id)}">คัดลอกลิงก์สินค้า</button></div><p class="pd-disclosure">ลิงก์นี้เป็นลิงก์ affiliate เราอาจได้รับค่าคอมมิชชัน</p></div></article>${p.description?`<section class="panel pd-section"><h2>รายละเอียดจากร้านค้า</h2><p class="pre-line">${esc(p.description)}</p></section>`:''}`;
   $('#stickyCta').innerHTML=`<a class="btn-go" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer sponsored">ไปหน้าสินค้า ↗</a>`;
   $('#stickyCta').hidden=false;
  }catch(e){$('#productBody').innerHTML=`<div class="v2-alert">${esc(e.message)}</div>`;}
@@ -63,7 +65,8 @@ async function productDetail(id){
 async function route(){
  const [section,...encodedParts]=(location.hash.slice(2)||'').split('/');
  let detail='';try{detail=decodeURIComponent(encodedParts.join('/'));}catch{}
- const view=section==='admin'?'admin':section==='about'?'about':section==='product'?'product':'home';
+ const directProduct=!location.hash&&location.pathname.startsWith('/product/')?document.querySelector('meta[name="product-id"]')?.content||'':'';
+ const view=section==='admin'?'admin':section==='about'?'about':section==='product'||directProduct?'product':'home';
  if(view==='home'){
   const category=section==='category'?detail:!location.hash&&location.pathname.startsWith('/category/')?document.querySelector('meta[name="category-name"]')?.content||'':'';
   if(state.category!==category)state.page=1;
@@ -73,7 +76,7 @@ async function route(){
  document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));
  $('#stickyCta').hidden=true;
  if(view==='admin')await loadAdmin();
- else if(view==='product')await productDetail(detail);
+ else if(view==='product')await productDetail(detail||directProduct);
  else if(view==='home')await loadPublic();
  window.scrollTo(0,0);
 }
@@ -229,6 +232,7 @@ async function handleGlobalClick(e){
  const p=e.target.closest('[data-page]');if(p){const [type,direction]=p.dataset.page.split(':');if(type==='public'){state.page+=direction==='next'?1:-1;await loadPublic();}else{state.adminPage+=direction==='next'?1:-1;await loadAdminProducts();}return;}
  const cat=e.target.closest('[data-category]');if(cat){const category=cat.dataset.category;location.assign((category?'/category/'+encodeURIComponent(category):'/')+location.search);return;}
  const go=e.target.closest('[data-go]');if(go){const product=state.products.find(p=>p.id===go.dataset.go);if(product)window.open(product.url,'_blank','noopener,noreferrer');return;}
+ const copyProduct=e.target.closest('[data-copy-product]');if(copyProduct){try{await navigator.clipboard.writeText(productUrl(copyProduct.dataset.copyProduct));notify('คัดลอกลิงก์สินค้าแล้ว');}catch{notify('คัดลอกไม่ได้ กรุณาคัดลอกจากแถบที่อยู่',true);}return;}
  const edit=e.target.closest('[data-edit]');if(edit)return editProduct(edit.dataset.edit);
  const del=e.target.closest('[data-delete]');if(del){const x=state.adminProducts.find(p=>p.id===del.dataset.delete);if(x&&confirm('ลบสินค้า "'+x.title+'"? (เก็บร่องรอยไว้สำหรับกู้ข้อมูล)'))try{await adminApi('products/'+x.id+'?'+params(),'DELETE');notify('ลบข้อมูลแล้ว');await Promise.all([loadAdminProducts(),loadAdminCategories(),loadQuota()]);}catch(err){fail(err);}return;}
  const removeCategory=e.target.closest('[data-remove-category]');if(removeCategory){const name=removeCategory.dataset.removeCategory;const count=state.adminCategories.find(c=>c.category===name)?.n||0;if(!confirm(`ลบหมวด "${name}"? สินค้า ${count} รายการจะยังอยู่ แต่จะไม่มีหมวดหมู่`))return;try{const result=await adminApi('categories?'+params(),'DELETE',{category:name});await Promise.all([loadAdminCategories(),loadAdminProducts()]);notify(`ลบหมวดแล้ว สินค้า ${result.updatedProducts} รายการยังอยู่`);}catch(err){fail(err);}return;}
@@ -236,6 +240,10 @@ async function handleGlobalClick(e){
 }
 function hooks(){
  document.addEventListener('click',handleGlobalClick);
+ $('.brand').href=homeUrl;
+ document.querySelector('[data-nav="home"]').href=homeUrl;
+ document.querySelector('[data-nav="about"]').href=homeUrl+'#/about';
+ document.querySelector('[data-nav="admin"]').href=homeUrl+'#/admin';
  let debounce;$('#searchInput').addEventListener('input',e=>{state.q=e.target.value;state.page=1;clearTimeout(debounce);debounce=setTimeout(loadPublic,300);});
  $('#searchClear').addEventListener('click',()=>{$('#searchInput').value='';state.q='';state.page=1;loadPublic();});
  $('#marketFilter').innerHTML='<option value="">ทั้งหมด</option>'+Object.entries(markets).map(([v,n])=>`<option value="${v}">${n}</option>`).join('');
