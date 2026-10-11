@@ -1,5 +1,6 @@
 import {json, responseError, must} from '../_lib/http.js';
 import {publicSite, productOut} from '../_lib/db.js';
+import {categorySlug} from '../_lib/category-link.js';
 
 export async function onRequestGet({request,env}) {
   try {
@@ -27,6 +28,6 @@ export async function onRequestGet({request,env}) {
     const count=await env.DB.prepare(`SELECT COUNT(*) AS n FROM products WHERE ${where}`).bind(...args).first();
     const result=await env.DB.prepare(`SELECT * FROM products WHERE ${where} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...args,limit,(page-1)*limit).all();
     const categories=await env.DB.prepare("SELECT category,COUNT(*) AS n FROM products WHERE site_id=? AND status='published' AND deleted_at IS NULL AND category<>'' GROUP BY category ORDER BY category LIMIT 100").bind(site.id).all();
-    return json({ok:true,site:{id:site.id,slug:site.slug,name:site.name,tagline:site.tagline,theme_color:site.theme_color},products:result.results.map(productOut),total:count.n,page,limit,categories:categories.results});
+    return json({ok:true,site:{id:site.id,slug:site.slug,name:site.name,tagline:site.tagline,theme_color:site.theme_color},products:result.results.map(productOut),total:count.n,page,limit,categories:categories.results.map(c=>({...c,slug:categorySlug(c.category)}))});
   } catch(e){return responseError(e);}
 }
