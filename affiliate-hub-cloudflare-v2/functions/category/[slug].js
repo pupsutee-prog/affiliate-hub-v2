@@ -18,12 +18,15 @@ export async function onRequestGet({request,env}){
     const canonical=url.origin+url.pathname+url.search;
     const title=category+' | '+site.name;
     const description='สินค้าหมวด'+category+' จาก '+site.name+' — รวมลิงก์สินค้าโปรโมชันจากหลายร้านค้า';
+    const preview=await env.DB.prepare("SELECT image,title FROM products WHERE site_id=? AND status='published' AND deleted_at IS NULL AND category=? AND image<>'' ORDER BY created_at DESC LIMIT 1").bind(site.id,category).first();
+    const image=preview?.image||url.origin+'/assets/share-preview.png';
     const asset=await env.ASSETS.fetch(new Request(new URL('/',request.url)));
     if(!asset.ok)return asset;
     let html=await asset.text();
     html=html.replace(/<title>[^<]*<\/title>/,`<title>${escapeHtml(title)}</title>`)
       .replace(/<meta name="description"[^>]*>/,`<meta name="description" content="${escapeHtml(description)}">`)
-      .replace('</head>',`<meta name="category-name" content="${escapeHtml(category)}">\n<meta property="og:type" content="website">\n<meta property="og:site_name" content="${escapeHtml(site.name)}">\n<meta property="og:title" content="${escapeHtml(category)}">\n<meta property="og:description" content="${escapeHtml(description)}">\n<meta property="og:url" content="${escapeHtml(canonical)}">\n<meta name="twitter:card" content="summary">\n<link rel="canonical" href="${escapeHtml(canonical)}">\n</head>`);
+      .replace(/<!-- SOCIAL_META_START -->[\s\S]*?<!-- SOCIAL_META_END -->/,`<meta property="og:type" content="website">\n<meta property="og:site_name" content="${escapeHtml(site.name)}">\n<meta property="og:title" content="${escapeHtml(category)}">\n<meta property="og:description" content="${escapeHtml(description)}">\n<meta property="og:url" content="${escapeHtml(canonical)}">\n<meta property="og:image" content="${escapeHtml(image)}">\n<meta property="og:image:alt" content="${escapeHtml(preview?.title||category)}">\n<meta name="twitter:card" content="summary_large_image">`)
+      .replace('</head>',`<meta name="category-name" content="${escapeHtml(category)}">\n<link rel="canonical" href="${escapeHtml(canonical)}">\n</head>`);
     const headers=new Headers(asset.headers);
     headers.set('content-type','text/html; charset=utf-8');
     headers.set('cache-control','no-store');
